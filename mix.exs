@@ -1,44 +1,19 @@
-defmodule Quadquizaminos.MixProject do
+defmodule Quadblockquiz.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :quadquizaminos,
-      version: "0.11.0",
+      app: :quadblockquiz,
+      version: "0.14.6",
       elixir: "~> 1.7",
       elixirc_paths: elixirc_paths(Mix.env()),
-      compilers: [:phoenix, :gettext, :unused] ++ Mix.compilers(),
+      compilers: [:phoenix, :gettext] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       build_embedded: true,
       deps: deps(),
-      unused: [
-        ignore: [
-          {QuadquizaminosWeb.Router.Helpers},
-          {QuadquizaminosWeb.Endpoint},
-          {QuadquizaminosWeb.ErrorView},
-          {QuadquizaminosWeb.Gettext},
-          {Quadquizaminos.ReleaseTask},
-          {Quadquizaminos.Repo},
-          {QuadquizaminosWeb.Router},
-          {QuadquizaminosWeb.SessionView},
-          {QuadquizaminosWeb.LayoutView},
-          {QuadquizaminosWeb.SessionController},
-          {QuadquizaminosWeb.PageController},
-          {QuadquizaminosWeb.AuthController},
-          {QuadquizaminosWeb.Telemetry},
-          {QuadquizaminosWeb.UserSocket},
-          {QuadquizaminosWeb.AuthView},
-          {QuadquizaminosWeb.PageView},
-          {:_, :__schema__, :_},
-          {:_, :__struct__, :_},
-          {:_, :__changeset__, :_},
-          {:_, :child_spec, :_},
-          {:_, :__live__, 0}
-        ]
-      ],
       releases: [
-        quadquizaminos: [
+        quadblockquiz: [
           steps: [:assemble, &copy_qna/1]
         ]
       ]
@@ -57,7 +32,7 @@ defmodule Quadquizaminos.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {Quadquizaminos.Application, []},
+      mod: {Quadblockquiz.Application, []},
       extra_applications: [
         :logger,
         :runtime_tools,
@@ -80,7 +55,6 @@ defmodule Quadquizaminos.MixProject do
   defp deps do
     [
       {:phoenix, "~> 1.5.7"},
-      {:mix_unused, "~> 0.2.0"},
       {:phoenix_ecto, "~> 4.1"},
       {:ecto_sql, "~> 3.5"},
       {:postgrex, ">= 0.0.0"},
@@ -99,7 +73,7 @@ defmodule Quadquizaminos.MixProject do
       {:ueberauth_github, "~> 0.7"},
       {:ueberauth_linkedin, git: "https://github.com/fajarmf/ueberauth_linkedin"},
       {:ueberauth_google, "~>0.10"},
-      {:sbom, git: "https://github.com/voltone/sbom", runtime: false},
+      {:sbom, git: "https://github.com/sigu/sbom", runtime: false},
       {:earmark, "~> 1.4"},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false}
     ]
@@ -116,7 +90,12 @@ defmodule Quadquizaminos.MixProject do
       setup: ["deps.get", "ecto.setup", "cmd npm install --prefix assets"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"]
+      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      "assets.deploy": [
+        "cmd --cd assets node build.js",
+        "cmd --cd assets npm run deploy",
+        "phx.digest"
+      ]
     ]
   end
 end

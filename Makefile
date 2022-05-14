@@ -1,10 +1,9 @@
 # Configuration
-	# -------------
+# -------------
 
 APP_NAME := $(shell grep 'app:' mix.exs | sed -e 's/\[//g' -e 's/ //g' -e 's/app://' -e 's/[:,]//g')
-APP_VERSION := $(shell git fetch && git describe --tags `git rev-list --tags --max-count=1`)
+APP_VERSION := $(shell grep 'version:' mix.exs | sed -e 's/\[//g' -e 's/ //g' -e 's/version://' -e 's/[:,]//g')
 DOCKER_IMAGE_TAG ?= $(APP_VERSION)
-GIT_REVISION ?= `git rev-parse HEAD`
 SBOM_FILE_NAME_CY ?= $(APP_NAME).$(APP_VERSION)-cyclonedx-sbom.1.0.0
 SBOM_FILE_NAME_SPDX ?= $(APP_NAME).$(APP_VERSION)-spdx-sbom.1.0.0
 
@@ -24,18 +23,15 @@ header:
 	@printf "\033[33m%-23s\033[0m" "APP_VERSION"
 	@printf "\033[35m%s\033[0m" $(APP_VERSION)
 	@echo ""
-	@printf "\033[33m%-23s\033[0m" "GIT_REVISION"
-	@printf "\033[35m%s\033[0m" $(GIT_REVISION)
-	@echo ""
 	@printf "\033[33m%-23s\033[0m" "DOCKER_IMAGE_TAG"
 	@printf "\033[35m%s\033[0m" $(DOCKER_IMAGE_TAG)
-	@echo "\n"
+	@echo ""
 	@printf "\033[33m%-23s\033[0m" "CYCLONEDX FILENAME"
 	@printf "\033[35m%s\033[0m" $(SBOM_FILE_NAME_CY)
-	@echo "\n"
+	@echo ""
 	@printf "\033[33m%-23s\033[0m" "SPDX FILENAME"
 	@printf "\033[35m%s\033[0m" $(SBOM_FILE_NAME_SPDX)
-	@echo "\n"
+	@echo ""
 
 .PHONY: targets
 targets:
@@ -83,34 +79,30 @@ format: mix format ## Run formatting tools on the code
 .PHONY: sbom sbom_fast
 sbom: ## creates sbom for both  npm and hex dependancies
 	mix deps.get && mix sbom.cyclonedx -o elixir_bom.xml
-	cd assets/  && npm install && npm install -g @cyclonedx/bom@3.1.1 && cyclonedx-bom -o ../$(SBOM_FILE_NAME_CY).xml && cd ..
-	./cyclonedx-cli merge --input-files ./$(SBOM_FILE_NAME_CY).xml ./elixir_bom.xml --output-file $(SBOM_FILE_NAME_CY)-all.xml
-	./cyclonedx-cli convert --input-file $(SBOM_FILE_NAME_CY).xml --output-file $(SBOM_FILE_NAME_CY).json
-	./cyclonedx-cli convert --input-file $(SBOM_FILE_NAME_CY).json --output-format spdxtag --output-file $(SBOM_FILE_NAME_SPDX).spdx
-	mkdir -p assets/static/.well-known/sbom
-	cp $(SBOM_FILE_NAME_CY).* assets/static/.well-known/sbom
-	cp $(SBOM_FILE_NAME_SPDX).* assets/static/.well-known/sbom
-	cp $(SBOM_FILE_NAME_CY).json assets/static/.well-known/sbom/sbom.json
+	cd assets/  && npm install && npm install -g @cyclonedx/bom@3.4.1 && cyclonedx-bom -o ../$(SBOM_FILE_NAME_CY).xml && cd ..
+	./cyclonedx-cli merge --name $(APP_NAME) --version $(APP_VERSION) --input-files ./$(SBOM_FILE_NAME_CY).xml ./elixir_bom.xml --output-file $(SBOM_FILE_NAME_CY)-all.xml
+	./cyclonedx-cli convert --input-file $(SBOM_FILE_NAME_CY)-all.xml --output-file $(SBOM_FILE_NAME_CY).json
+	./cyclonedx-cli convert --input-file $(SBOM_FILE_NAME_CY).json --output-format spdxjson --output-file $(SBOM_FILE_NAME_SPDX).spdx
+	rm $(SBOM_FILE_NAME_CY).xml && mv $(SBOM_FILE_NAME_CY)-all.xml $(SBOM_FILE_NAME_CY).xml
+	cp $(SBOM_FILE_NAME_CY).* priv/static/.well-known/sbom
+	cp $(SBOM_FILE_NAME_SPDX).* priv/static/.well-known/sbom
 
 sbom_fast: ## creates sbom without dependancy instalment, assumes you have cyclonedx-bom javascript package installed globally
 	mix sbom.cyclonedx -o elixir_bom.xml
 	cd assets/ && cyclonedx-bom -o ../$(SBOM_FILE_NAME_CY).xml && cd ..
-	./cyclonedx-cli merge --input-files ./$(SBOM_FILE_NAME_CY).xml ./elixir_bom.xml --output-file $(SBOM_FILE_NAME_CY)-all.xml
-	./cyclonedx-cli convert --input-file $(SBOM_FILE_NAME_CY).xml --output-file $(SBOM_FILE_NAME_CY).json
-	./cyclonedx-cli convert --input-file $(SBOM_FILE_NAME_CY).json --output-format spdxtag --output-file $(SBOM_FILE_NAME_SPDX).spdx
-	mkdir -p assets/static/.well-known/sbom
-	cp $(SBOM_FILE_NAME_CY).* assets/static/.well-known/sbom
-	cp $(SBOM_FILE_NAME_SPDX).* assets/static/.well-known/sbom
-	cp $(SBOM_FILE_NAME_CY).json assets/static/.well-known/sbom/sbom.json
+	./cyclonedx-cli merge --name $(APP_NAME) --version $(APP_VERSION) --input-files ./$(SBOM_FILE_NAME_CY).xml ./elixir_bom.xml --output-file $(SBOM_FILE_NAME_CY)-all.xml
+	./cyclonedx-cli convert --input-file $(SBOM_FILE_NAME_CY)-all.xml --output-file $(SBOM_FILE_NAME_CY).json
+	./cyclonedx-cli convert --input-file $(SBOM_FILE_NAME_CY).json --output-format spdxjson --output-file $(SBOM_FILE_NAME_SPDX).spdx
+	rm $(SBOM_FILE_NAME_CY).xml && mv $(SBOM_FILE_NAME_CY)-all.xml $(SBOM_FILE_NAME_CY).xml
+	cp $(SBOM_FILE_NAME_CY).* priv/static/.well-known/sbom
+	cp $(SBOM_FILE_NAME_SPDX).* priv/static/.well-known/sbom
 
 
 release: ## Build a release of the application with MIX_ENV=prod
 	MIX_ENV=prod mix deps.get --only prod
 	MIX_ENV=prod mix compile
 	npm install --prefix ./assets
-	npm run deploy --prefix ./assets
-	mkdir -p priv/static
-	MIX_ENV=prod mix phx.digest
+	MIX_ENV=prod mix assets.deploy
 	MIX_ENV=prod mix release
 
 .PHONY: docker-image
